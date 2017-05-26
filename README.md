@@ -1,28 +1,101 @@
-# Hmr
+# Hot Module Replacement (HMR) With Angular CLI
 
-This project was generated with [Angular CLI](https://github.com/angular/angular-cli) version 1.0.3.
+/// Install dev-dependency
 
-## Development server
+`$ npm install --save-dev @angularclass/hmr` or `yarn add @angularclass/hmr --dev`
 
-Run `ng serve` for a dev server. Navigate to `http://localhost:4200/`. The app will automatically reload if you change any of the source files.
+/// Create file `src/environments/environment.hmr.ts`
 
-## Code scaffolding
+```
+export const environment = {
+ production: false,
+ hmr: true
+};
+```
 
-Run `ng generate component component-name` to generate a new component. You can also use `ng generate directive|pipe|service|class|module`.
+/// Edit file `src/environments/environment.prod.ts`
 
-## Build
+```
+export const environment = {
+ production: true,
+ hmr: false
+};
+```
 
-Run `ng build` to build the project. The build artifacts will be stored in the `dist/` directory. Use the `-prod` flag for a production build.
+/// Edit file `src/environments/environment.ts`
 
-## Running unit tests
+```
+export const environment = {
+ production: false,
+ hmr: false
+};
+```
 
-Run `ng test` to execute the unit tests via [Karma](https://karma-runner.github.io).
+/// Update file `.angular-cli.json`
 
-## Running end-to-end tests
+```
+...
+    "environmentSource": "environments/environment.ts",
+    "environments": {
+      "dev": "environments/environment.ts",
+      "hmr": "environments/environment.hmr.ts",
+      "prod": "environments/environment.prod.ts"
+    },
+...
+```
 
-Run `ng e2e` to execute the end-to-end tests via [Protractor](http://www.protractortest.org/).
-Before running the tests make sure you are serving the app via `ng serve`.
+/// Create file `src/hmr.ts`
 
-## Further help
+```
+import { NgModuleRef, ApplicationRef } from '@angular/core';
+import { createNewHosts } from '@angularclass/hmr';
 
-To get more help on the Angular CLI use `ng help` or go check out the [Angular CLI README](https://github.com/angular/angular-cli/blob/master/README.md).
+export const hmrBootstrap = (module: any, bootstrap: () => Promise<NgModuleRef<any>>) => {
+  let ngModule: NgModuleRef<any>;
+  module.hot.accept();
+  bootstrap().then(mod => ngModule = mod);
+  module.hot.dispose(() => {
+    const appRef: ApplicationRef = ngModule.injector.get(ApplicationRef);
+    const elements = appRef.components.map(c => c.location.nativeElement);
+    const makeVisible = createNewHosts(elements);
+    ngModule.destroy();
+    makeVisible();
+  });
+};
+```
+
+/// Update file `src/main.ts`
+
+```
+import { enableProdMode } from '@angular/core';
+import { platformBrowserDynamic } from '@angular/platform-browser-dynamic';
+
+import { AppModule } from './app/app.module';
+import { environment } from './environments/environment';
+
+import { hmrBootstrap } from './hmr';
+
+if (environment.production) {
+  enableProdMode();
+}
+
+const bootstrap = () => platformBrowserDynamic().bootstrapModule(AppModule);
+
+if (environment.hmr) {
+  if (module[ 'hot' ]) {
+    hmrBootstrap(module, bootstrap);
+  } else {
+    console.error('HMR is not enabled for webpack-dev-server!');
+    console.log('Are you using the --hmr flag for ng serve?');
+  }
+} else {
+  bootstrap();
+}
+```
+
+# Starting the development environment with HMR enabled
+
+`$ ng serve --hmr -e=hmr`
+
+# Credits
+Bram Borggreve [https://medium.com/@beeman/tutorial-enable-hmr-in-angular-cli-apps-1b0d13b80130](https://medium.com/@beeman/tutorial-enable-hmr-in-angular-cli-apps-1b0d13b80130)
